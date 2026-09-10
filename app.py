@@ -50,8 +50,7 @@ if uploaded_file:
                     image.convert("RGB").save(buffered, format="JPEG")
                     img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
-                    # v1 정식 엔드포인트 사용
-                    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
                     
                     payload = {
                         "systemInstruction": {
