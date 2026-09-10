@@ -34,7 +34,7 @@ Analyze the uploaded image and respond in the language detected (default: Englis
 
 if api_key:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=SYSTEM_PROMPT)
+    model = genai.GenerativeModel("models/gemini-1.5-flash", system_instruction=SYSTEM_PROMPT)
 
     uploaded_file = st.file_uploader("쓰레기 사진을 찍거나 올려주세요 (Take a photo or upload)", type=["jpg", "jpeg", "png"])
 
