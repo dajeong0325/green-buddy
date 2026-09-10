@@ -1,5 +1,7 @@
 import streamlit as st
-import google.generativeai as genai
+import requests
+import base64
+from io import BytesIO
 from PIL import Image
 
 st.set_page_config(page_title="Green Buddy - 춘천 분리수거", page_icon="🌱")
@@ -32,23 +34,49 @@ Analyze the uploaded image and respond in the language detected (default: Englis
 - Note: [Only if relevant, fine risk or dorm collection area reminder]
 """
 
-if api_key:
-    genai.configure(api_key=api_key, api_version="v1")
-    model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=SYSTEM_PROMPT)
+uploaded_file = st.file_uploader("쓰레기 사진을 찍거나 올려주세요 (Take a photo or upload)", type=["jpg", "jpeg", "png"])
 
-    uploaded_file = st.file_uploader("쓰레기 사진을 찍거나 올려주세요 (Take a photo or upload)", type=["jpg", "jpeg", "png"])
+if uploaded_file:
+    image = Image.open(uploaded_file)
+    st.image(image, caption="Uploaded Image", use_container_width=True)
 
-    if uploaded_file:
-        image = Image.open(uploaded_file)
-        st.image(image, caption="Uploaded Image", use_container_width=True)
-
-        if st.button("분리수거 방법 확인하기 (Check How to Sort)", type="primary"):
+    if st.button("분리수거 방법 확인하기 (Check How to Sort)", type="primary"):
+        if not api_key:
+            st.error("Gemini API 키가 설정되지 않았습니다.")
+        else:
             with st.spinner("Green Buddy가 춘천시 기준을 확인 중입니다..."):
                 try:
-                    response = model.generate_content([image, "How do I sort and throw this away in my dorm?"])
-                    st.success("안내 완료!")
-                    st.markdown(response.text)
+                    buffered = BytesIO()
+                    image.convert("RGB").save(buffered, format="JPEG")
+                    img_b64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+                    
+                    payload = {
+                        "systemInstruction": {
+                            "parts": [{"text": SYSTEM_PROMPT}]
+                        },
+                        "contents": [{
+                            "parts": [
+                                {"text": "How do I sort and throw this away in my dorm?"},
+                                {
+                                    "inlineData": {
+                                        "mimeType": "image/jpeg",
+                                        "data": img_b64
+                                    }
+                                }
+                            ]
+                        }]
+                    }
+
+                    res = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+                    
+                    if res.status_code == 200:
+                        data = res.json()
+                        text = data["candidates"][0]["content"]["parts"][0]["text"]
+                        st.success("안내 완료!")
+                        st.markdown(text)
+                    else:
+                        st.error(f"오류가 발생했습니다 ({res.status_code}): {res.text}")
                 except Exception as e:
-                    st.error(f"오류가 발생했습니다: {e}")
-else:
-    st.warning("진행하려면 Gemini API 키가 필요합니다.")
+                    st.error(f"처리 중 오류가 발생했습니다: {e}")
